@@ -18,7 +18,7 @@ type TemplateRenderer struct {
 	templates *template.Template
 }
 
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c *echo.Context) error {
+func (t *TemplateRenderer) Render(c *echo.Context, w io.Writer, name string, data any) error {
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
@@ -59,12 +59,15 @@ func main() {
 		log.Fatalf("Error en AutoMigrate: %v", err)
 	}
 
-	// Crear llaves foráneas explícitas en PostgreSQL
-	db.Exec("ALTER TABLE vehiculos ADD CONSTRAINT fk_vehiculos_sucursal FOREIGN KEY (sucursal_id) REFERENCES sucursals(id) ON DELETE RESTRICT;")
-	db.Exec("ALTER TABLE conductors ADD CONSTRAINT fk_conductores_sucursal FOREIGN KEY (sucursal_id) REFERENCES sucursals(id) ON DELETE RESTRICT;")
-	db.Exec("ALTER TABLE envios ADD CONSTRAINT fk_envios_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculos(id) ON DELETE RESTRICT;")
-	db.Exec("ALTER TABLE envios ADD CONSTRAINT fk_envios_conductor FOREIGN KEY (conductor_id) REFERENCES conductors(id) ON DELETE RESTRICT;")
-	db.Exec("ALTER TABLE envios ADD CONSTRAINT fk_envios_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE RESTRICT;")
+	// Crear llaves foráneas explícitas en PostgreSQL (ignorando si ya existen)
+	db.Exec(`DO $$ BEGIN
+		ALTER TABLE vehiculos ADD CONSTRAINT fk_vehiculos_sucursal FOREIGN KEY (sucursal_id) REFERENCES sucursals(id) ON DELETE RESTRICT;
+		ALTER TABLE conductors ADD CONSTRAINT fk_conductores_sucursal FOREIGN KEY (sucursal_id) REFERENCES sucursals(id) ON DELETE RESTRICT;
+		ALTER TABLE envios ADD CONSTRAINT fk_envios_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculos(id) ON DELETE RESTRICT;
+		ALTER TABLE envios ADD CONSTRAINT fk_envios_conductor FOREIGN KEY (conductor_id) REFERENCES conductors(id) ON DELETE RESTRICT;
+		ALTER TABLE envios ADD CONSTRAINT fk_envios_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE RESTRICT;
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$;`)
 
 	e := echo.New()
 	e.Renderer = &TemplateRenderer{
@@ -81,7 +84,7 @@ func main() {
 		registerScaffoldRoutes(e, ent)
 	}
 
-	log.Println("Servidor Logística (Echo v5) corriendo en http://localhost:8085")
+	log.Println("Servidor Logística (Echo v5.4.4) corriendo en http://localhost:8085")
 	if err := e.Start(":8085"); err != nil {
 		log.Fatal(err)
 	}
@@ -95,7 +98,7 @@ func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 		slicePtr := reflect.New(reflect.SliceOf(cfg.ModelType))
 		db.Order("id asc").Find(slicePtr.Interface())
 
-		return c.Render(http.StatusOK, "crud.html", map[string]interface{}{
+		return c.Render(http.StatusOK, "crud.html", map[string]any{
 			"Entities":   entities,
 			"Current":    cfg,
 			"Headers":    getHeaders(cfg.ModelType),
@@ -127,7 +130,7 @@ func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 		slicePtr := reflect.New(reflect.SliceOf(cfg.ModelType))
 		db.Order("id asc").Find(slicePtr.Interface())
 
-		return c.Render(http.StatusOK, "crud.html", map[string]interface{}{
+		return c.Render(http.StatusOK, "crud.html", map[string]any{
 			"Entities":   entities,
 			"Current":    cfg,
 			"Headers":    getHeaders(cfg.ModelType),
@@ -183,7 +186,7 @@ func extractRows(slice reflect.Value) [][]string {
 	return rows
 }
 
-func buildFormFields(t reflect.Type, existing interface{}) []FieldMeta {
+func buildFormFields(t reflect.Type, existing any) []FieldMeta {
 	var fields []FieldMeta
 	var val reflect.Value
 	if existing != nil {
