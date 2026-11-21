@@ -184,9 +184,35 @@ func extractRows(slice reflect.Value) [][]string {
 	var rows [][]string
 	for i := 0; i < slice.Len(); i++ {
 		item := slice.Index(i)
+		t := item.Type()
 		var row []string
 		for j := 0; j < item.NumField(); j++ {
-			row = append(row, fmt.Sprintf("%v", item.Field(j).Interface()))
+			fieldName := t.Field(j).Name
+			valStr := fmt.Sprintf("%v", item.Field(j).Interface())
+
+			switch fieldName {
+			case "SucursalID":
+				var s Sucursal
+				if err := db.First(&s, valStr).Error; err == nil {
+					valStr = fmt.Sprintf("%d - %s (%s)", s.ID, s.Nombre, s.Ciudad)
+				}
+			case "VehiculoID":
+				var v Vehiculo
+				if err := db.First(&v, valStr).Error; err == nil {
+					valStr = fmt.Sprintf("%d - %s (%s)", v.ID, v.Placa, v.Marca)
+				}
+			case "ConductorID":
+				var c Conductor
+				if err := db.First(&c, valStr).Error; err == nil {
+					valStr = fmt.Sprintf("%d - %s", c.ID, c.Nombre)
+				}
+			case "ClienteID":
+				var cl Cliente
+				if err := db.First(&cl, valStr).Error; err == nil {
+					valStr = fmt.Sprintf("%d - %s", cl.ID, cl.RazonSocial)
+				}
+			}
+			row = append(row, valStr)
 		}
 		rows = append(rows, row)
 	}
