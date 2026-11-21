@@ -14,8 +14,8 @@ type Vehiculo struct {
 	ID          uint   `gorm:"primaryKey" label:"ID"`
 	Placa       string `gorm:"size:20;unique;not null" label:"Placa"`
 	Marca       string `gorm:"size:60;not null" label:"Marca"`
-	CapacidadKg int    `gorm:"not null" label:"Capacidad (Kg)"`
-	SucursalID  uint   `gorm:"not null" label:"ID Sucursal (FK)"`
+	CapacidadKg string `gorm:"size:80;not null" label:"Capacidad de Carga"`
+	SucursalID  uint   `gorm:"not null" label:"Sucursal"`
 }
 
 // 3. Entidad Conductor (5 atributos - Relacionada con Sucursal)
@@ -24,7 +24,7 @@ type Conductor struct {
 	Nombre     string `gorm:"size:100;not null" label:"Nombre Completo"`
 	Licencia   string `gorm:"size:30;unique;not null" label:"Nro. Licencia"`
 	Telefono   string `gorm:"size:20" label:"Teléfono"`
-	SucursalID uint   `gorm:"not null" label:"ID Sucursal (FK)"`
+	SucursalID uint   `gorm:"not null" label:"Sucursal"`
 }
 
 // 4. Entidad Cliente (5 atributos)
@@ -40,7 +40,7 @@ type Cliente struct {
 type Envio struct {
 	ID          uint   `gorm:"primaryKey" label:"ID"`
 	CodigoGuia  string `gorm:"size:30;unique;not null" label:"Código de Guía"`
-	VehiculoID  uint   `gorm:"not null" label:"ID Vehículo (FK)"`
-	ConductorID uint   `gorm:"not null" label:"ID Conductor (FK)"`
-	ClienteID   uint   `gorm:"not null" label:"ID Cliente (FK)"`
+	VehiculoID  uint   `gorm:"not null" label:"Vehículo"`
+	ConductorID uint   `gorm:"not null" label:"Conductor"`
+	ClienteID   uint   `gorm:"not null" label:"Cliente"`
 }

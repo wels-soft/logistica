@@ -41,7 +41,17 @@
                         {{range .FormFields}}
                         <div class="mb-3">
                             <label class="form-label fw-semibold">{{.Label}}</label>
-                            <input type="{{.Type}}" name="{{.Name}}" value="{{.Value}}" class="form-control" required>
+                            {{if eq .Type "select"}}
+                                {{$selectedVal := .Value}}
+                                <select name="{{.Name}}" class="form-select" required>
+                                    <option value="">-- Seleccione una opción --</option>
+                                    {{range .Options}}
+                                    <option value="{{.Value}}" {{if eq $selectedVal .Value}}selected{{end}}>{{.Text}}</option>
+                                    {{end}}
+                                </select>
+                            {{else}}
+                                <input type="{{.Type}}" name="{{.Name}}" value="{{.Value}}" class="form-control" required>
+                            {{end}}
                         </div>
                         {{end}}
                         <div class="d-grid gap-2">

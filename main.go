@@ -22,11 +22,17 @@ func (t *TemplateRenderer) Render(c *echo.Context, w io.Writer, name string, dat
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-type FieldMeta struct {
-	Name  string
-	Label string
-	Type  string
+type SelectOption struct {
 	Value string
+	Text  string
+}
+
+type FieldMeta struct {
+	Name    string
+	Label   string
+	Type    string
+	Value   string
+	Options []SelectOption
 }
 
 type EntityConfig struct {
@@ -53,7 +59,7 @@ func main() {
 		log.Fatalf("Error conectando a PostgreSQL: %v", err)
 	}
 
-	// Scaffolding de Base de Datos: crea las 5 tablas y sus relaciones FK
+	// Scaffolding de Base de Datos: crea/actualiza las 5 tablas y sus relaciones FK
 	err = db.AutoMigrate(&Sucursal{}, &Vehiculo{}, &Conductor{}, &Cliente{}, &Envio{})
 	if err != nil {
 		log.Fatalf("Error en AutoMigrate: %v", err)
@@ -197,20 +203,70 @@ func buildFormFields(t reflect.Type, existing any) []FieldMeta {
 		if f.Name == "ID" {
 			continue
 		}
-		inputType := "text"
-		if f.Type.Kind() == reflect.Int || f.Type.Kind() == reflect.Uint {
-			inputType = "number"
-		}
 		currentVal := ""
 		if existing != nil {
 			currentVal = fmt.Sprintf("%v", val.Field(i).Interface())
 		}
-		fields = append(fields, FieldMeta{
+
+		field := FieldMeta{
 			Name:  f.Name,
 			Label: f.Tag.Get("label"),
-			Type:  inputType,
+			Type:  "text",
 			Value: currentVal,
-		})
+		}
+
+		switch f.Name {
+		case "CapacidadKg":
+			field.Type = "select"
+			field.Options = []SelectOption{
+				{Value: "4 a 11 t (Camión sencillo)", Text: "Camión sencillo (2 ejes) — 4 a 11 toneladas"},
+				{Value: "14 a 18 t (Camión pesado)", Text: "Camión pesado / Torton (3 ejes) — 14 a 18 toneladas"},
+				{Value: "28 a 34 t (Tractocamión)", Text: "Tractocamión / Mula (5-6 ejes) — 28 a 34 toneladas"},
+				{Value: "+48 t (Carga especial)", Text: "Cargas especiales / Sobredimensionadas (+48 t)"},
+			}
+		case "SucursalID":
+			field.Type = "select"
+			var list []Sucursal
+			db.Order("id asc").Find(&list)
+			for _, s := range list {
+				field.Options = append(field.Options, SelectOption{
+					Value: fmt.Sprintf("%d", s.ID),
+					Text:  fmt.Sprintf("%d - %s (%s)", s.ID, s.Nombre, s.Ciudad),
+				})
+			}
+		case "VehiculoID":
+			field.Type = "select"
+			var list []Vehiculo
+			db.Order("id asc").Find(&list)
+			for _, v := range list {
+				field.Options = append(field.Options, SelectOption{
+					Value: fmt.Sprintf("%d", v.ID),
+					Text:  fmt.Sprintf("%d - %s (%s)", v.ID, v.Placa, v.Marca),
+				})
+			}
+		case "ConductorID":
+			field.Type = "select"
+			var list []Conductor
+			db.Order("id asc").Find(&list)
+			for _, c := range list {
+				field.Options = append(field.Options, SelectOption{
+					Value: fmt.Sprintf("%d", c.ID),
+					Text:  fmt.Sprintf("%d - %s (Lic: %s)", c.ID, c.Nombre, c.Licencia),
+				})
+			}
+		case "ClienteID":
+			field.Type = "select"
+			var list []Cliente
+			db.Order("id asc").Find(&list)
+			for _, cl := range list {
+				field.Options = append(field.Options, SelectOption{
+					Value: fmt.Sprintf("%d", cl.ID),
+					Text:  fmt.Sprintf("%d - %s (%s)", cl.ID, cl.RazonSocial, cl.CiudadDestino),
+				})
+			}
+		}
+
+		fields = append(fields, field)
 	}
 	return fields
 }
