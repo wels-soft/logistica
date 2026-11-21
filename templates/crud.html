@@ -50,7 +50,7 @@
                                     {{end}}
                                 </select>
                             {{else}}
-                                <input type="{{.Type}}" name="{{.Name}}" value="{{.Value}}" class="form-control" required>
+                                <input type="{{.Type}}" name="{{.Name}}" value="{{.Value}}" class="form-control {{if .Readonly}}bg-light fw-bold{{end}}" {{if .Readonly}}readonly{{end}} required>
                             {{end}}
                         </div>
                         {{end}}

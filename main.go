@@ -28,11 +28,12 @@ type SelectOption struct {
 }
 
 type FieldMeta struct {
-	Name    string
-	Label   string
-	Type    string
-	Value   string
-	Options []SelectOption
+	Name     string
+	Label    string
+	Type     string
+	Value    string
+	Readonly bool
+	Options  []SelectOption
 }
 
 type EntityConfig struct {
@@ -216,6 +217,16 @@ func buildFormFields(t reflect.Type, existing any) []FieldMeta {
 		}
 
 		switch f.Name {
+		case "CodigoGuia":
+			field.Readonly = true
+			if existing == nil {
+				var last Envio
+				if err := db.Order("id desc").First(&last).Error; err != nil {
+					field.Value = "0101"
+				} else {
+					field.Value = fmt.Sprintf("%04d", 101+last.ID)
+				}
+			}
 		case "CapacidadKg":
 			field.Type = "select"
 			field.Options = []SelectOption{

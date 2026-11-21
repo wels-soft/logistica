@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+
+	"gorm.io/gorm"
+)
+
 // 1. Entidad Sucursal (5 atributos)
 type Sucursal struct {
 	ID        uint   `gorm:"primaryKey" label:"ID"`
@@ -43,4 +49,15 @@ type Envio struct {
 	VehiculoID  uint   `gorm:"not null" label:"Vehículo"`
 	ConductorID uint   `gorm:"not null" label:"Conductor"`
 	ClienteID   uint   `gorm:"not null" label:"Cliente"`
+}
+
+// Hook automático antes de crear un Envío: genera 0101, 0102, 0103...
+func (e *Envio) BeforeCreate(tx *gorm.DB) (err error) {
+	var last Envio
+	if err := tx.Order("id desc").First(&last).Error; err != nil {
+		e.CodigoGuia = "0101"
+	} else {
+		e.CodigoGuia = fmt.Sprintf("%04d", 101+last.ID)
+	}
+	return nil
 }
