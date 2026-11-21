@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -18,7 +18,7 @@ type TemplateRenderer struct {
 	templates *template.Template
 }
 
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c *echo.Context) error {
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
@@ -71,8 +71,8 @@ func main() {
 		templates: template.Must(template.ParseGlob("templates/*.html")),
 	}
 
-	// Ruta principal (Dashboard con resumen de las 5 entidades)
-	e.GET("/", func(c echo.Context) error {
+	// Ruta principal
+	e.GET("/", func(c *echo.Context) error {
 		return c.Redirect(http.StatusFound, "/sucursales")
 	})
 
@@ -81,26 +81,25 @@ func main() {
 		registerScaffoldRoutes(e, ent)
 	}
 
-	log.Println("Servidor Logística corriendo en http://localhost:8085")
-	e.Logger.Fatal(e.Start(":8085"))
+	log.Println("Servidor Logística (Echo v5) corriendo en http://localhost:8085")
+	if err := e.Start(":8085"); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 	base := "/" + cfg.Slug
 
 	// LISTAR (Index)
-	e.GET(base, func(c echo.Context) error {
+	e.GET(base, func(c *echo.Context) error {
 		slicePtr := reflect.New(reflect.SliceOf(cfg.ModelType))
 		db.Order("id asc").Find(slicePtr.Interface())
-
-		headers := getHeaders(cfg.ModelType)
-		rows := extractRows(slicePtr.Elem())
 
 		return c.Render(http.StatusOK, "crud.html", map[string]interface{}{
 			"Entities":   entities,
 			"Current":    cfg,
-			"Headers":    headers,
-			"Rows":       rows,
+			"Headers":    getHeaders(cfg.ModelType),
+			"Rows":       extractRows(slicePtr.Elem()),
 			"FormFields": buildFormFields(cfg.ModelType, nil),
 			"EditID":     "",
 			"Error":      c.QueryParam("error"),
@@ -108,7 +107,7 @@ func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 	})
 
 	// CREAR (Create)
-	e.POST(base, func(c echo.Context) error {
+	e.POST(base, func(c *echo.Context) error {
 		itemPtr := reflect.New(cfg.ModelType)
 		bindFormToStruct(c, itemPtr.Elem())
 		if res := db.Create(itemPtr.Interface()); res.Error != nil {
@@ -118,7 +117,7 @@ func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 	})
 
 	// VISTA EDITAR (Edit)
-	e.GET(base+"/edit/:id", func(c echo.Context) error {
+	e.GET(base+"/edit/:id", func(c *echo.Context) error {
 		id := c.Param("id")
 		itemPtr := reflect.New(cfg.ModelType)
 		if err := db.First(itemPtr.Interface(), id).Error; err != nil {
@@ -140,7 +139,7 @@ func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 	})
 
 	// ACTUALIZAR (Update)
-	e.POST(base+"/update/:id", func(c echo.Context) error {
+	e.POST(base+"/update/:id", func(c *echo.Context) error {
 		id := c.Param("id")
 		itemPtr := reflect.New(cfg.ModelType)
 		if err := db.First(itemPtr.Interface(), id).Error; err == nil {
@@ -153,7 +152,7 @@ func registerScaffoldRoutes(e *echo.Echo, cfg EntityConfig) {
 	})
 
 	// ELIMINAR (Delete)
-	e.POST(base+"/delete/:id", func(c echo.Context) error {
+	e.POST(base+"/delete/:id", func(c *echo.Context) error {
 		id := c.Param("id")
 		itemPtr := reflect.New(cfg.ModelType)
 		if res := db.Delete(itemPtr.Interface(), id); res.Error != nil {
@@ -193,7 +192,7 @@ func buildFormFields(t reflect.Type, existing interface{}) []FieldMeta {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		if f.Name == "ID" {
-			continue // ID es autoincremental
+			continue
 		}
 		inputType := "text"
 		if f.Type.Kind() == reflect.Int || f.Type.Kind() == reflect.Uint {
@@ -213,7 +212,7 @@ func buildFormFields(t reflect.Type, existing interface{}) []FieldMeta {
 	return fields
 }
 
-func bindFormToStruct(c echo.Context, structVal reflect.Value) {
+func bindFormToStruct(c *echo.Context, structVal reflect.Value) {
 	t := structVal.Type()
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
