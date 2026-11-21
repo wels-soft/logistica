@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 
@@ -53,7 +54,11 @@ var entities = []EntityConfig{
 }
 
 func main() {
-	dsn := "host=10.0.2.47 user=logistica_user password=Logistica2026 dbname=logistica_db port=5432 sslmode=disable TimeZone=America/Guayaquil"
+	dsn := os.Getenv("DB_DSN")
+	if dsn == "" {
+		log.Fatal("Falta la variable de entorno DB_DSN")
+	}
+
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
